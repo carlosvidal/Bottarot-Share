@@ -94,7 +94,9 @@ const sectionTitles: Record<string, string> = {
     ) : (
       <>
         <header class="share-header">
-          <a href={MAIN_SITE} class="logo">Free Tarot Fun</a>
+          <a href={MAIN_SITE} class="logo">
+            <img src="/logo.svg" alt="Free Tarot Fun" />
+          </a>
           <h1>{share.title}</h1>
           {question && <p class="question">"{question}"</p>}
         </header>
@@ -210,16 +212,17 @@ const sectionTitles: Record<string, string> = {
 
   .logo {
     display: inline-block;
-    font-family: 'Cinzel', serif;
-    font-size: 1.2rem;
-    color: var(--accent);
-    text-decoration: none;
     margin-bottom: 20px;
-    letter-spacing: 2px;
+    transition: opacity 0.2s ease;
+  }
+
+  .logo img {
+    height: 50px;
+    width: auto;
   }
 
   .logo:hover {
-    color: var(--accent-light);
+    opacity: 0.8;
   }
 
   h1 {
