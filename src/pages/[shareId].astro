@@ -108,7 +108,7 @@ const sectionTitles: Record<string, string> = {
                   <div class={`tarot-card ${!card.upright ? 'inverted' : ''}`}>
                     <div class="card-image-wrapper">
                       <img
-                        src={`${MAIN_SITE}/cards/${card.image || card.name.toLowerCase().replace(/\s+/g, '-')}.webp`}
+                        src={`${MAIN_SITE}${card.image}`}
                         alt={card.name}
                         loading="lazy"
                         onerror="this.src='/card-placeholder.svg'"
