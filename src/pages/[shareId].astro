@@ -1,0 +1,483 @@
+---
+// SSR: This code runs on the server
+const { shareId } = Astro.params;
+const API_URL = import.meta.env.API_URL || 'https://backend.freetarot.fun';
+const MAIN_SITE = import.meta.env.MAIN_SITE_URL || 'https://freetarot.fun';
+
+// Fetch share data from backend
+let shareData = null;
+let error = null;
+
+try {
+  const response = await fetch(`${API_URL}/api/shared/${shareId}`);
+  if (!response.ok) {
+    error = response.status === 404 ? 'not_found' : 'server_error';
+  } else {
+    shareData = await response.json();
+  }
+} catch (e) {
+  console.error('Error fetching share:', e);
+  error = 'network_error';
+}
+
+const share = shareData?.share;
+const readings = shareData?.readings || [];
+const question = shareData?.question;
+
+// Dynamic meta tags
+const title = share?.title || 'Lectura de Tarot';
+const description = share?.interpretation_summary || 'Una lectura de tarot compartida en Free Tarot Fun';
+const image = share?.preview_image_url || `${MAIN_SITE}/og-share-default.jpg`;
+const url = `https://share.freetarot.fun/${shareId}`;
+
+// Card position labels
+const positionLabels: Record<string, string> = {
+  'Pasado': 'Pasado',
+  'Presente': 'Presente',
+  'Futuro': 'Futuro'
+};
+
+// Section display names
+const sectionTitles: Record<string, string> = {
+  saludo: 'Bienvenida',
+  pasado: 'El Pasado',
+  presente: 'El Presente',
+  futuro: 'El Futuro',
+  sintesis: 'Sintesis',
+  consejo: 'Consejo'
+};
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title} | Free Tarot Fun</title>
+  <meta name="description" content={description} />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content={`${title} | Free Tarot Fun`} />
+  <meta property="og:description" content={description} />
+  <meta property="og:image" content={image} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:url" content={url} />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Free Tarot Fun" />
+  <meta property="og:locale" content="es_ES" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={`${title} | Free Tarot Fun`} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={image} />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="canonical" href={url} />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="share-page">
+    {error ? (
+      <div class="error-container">
+        <div class="error-icon">&#128301;</div>
+        <h1>Lectura no encontrada</h1>
+        <p>Esta lectura no existe o ha expirado.</p>
+        <a href={MAIN_SITE} class="cta-button">Crear mi propia lectura</a>
+      </div>
+    ) : (
+      <>
+        <header class="share-header">
+          <a href={MAIN_SITE} class="logo">Free Tarot Fun</a>
+          <h1>{share.title}</h1>
+          {question && <p class="question">"{question}"</p>}
+        </header>
+
+        <main class="share-content">
+          {readings.map((reading: any) => (
+            <article class="reading">
+              <!-- Cards Display -->
+              <div class="cards-container">
+                {reading.cards?.map((card: any) => (
+                  <div class={`tarot-card ${!card.upright ? 'inverted' : ''}`}>
+                    <div class="card-image-wrapper">
+                      <img
+                        src={`${MAIN_SITE}/cards/${card.image || card.name.toLowerCase().replace(/\s+/g, '-')}.webp`}
+                        alt={card.name}
+                        loading="lazy"
+                        onerror="this.src='/card-placeholder.svg'"
+                      />
+                    </div>
+                    <div class="card-info">
+                      <span class="card-name">{card.name}</span>
+                      <span class="card-position">{positionLabels[card.posicion] || card.posicion}</span>
+                      {!card.upright && <span class="card-orientation">Invertida</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <!-- Interpretation -->
+              <div class="interpretation">
+                {reading.sections ? (
+                  Object.entries(reading.sections)
+                    .filter(([key]) => ['saludo', 'pasado', 'presente', 'futuro', 'sintesis', 'consejo'].includes(key))
+                    .sort(([a], [b]) => {
+                      const order = ['saludo', 'pasado', 'presente', 'futuro', 'sintesis', 'consejo'];
+                      return order.indexOf(a) - order.indexOf(b);
+                    })
+                    .map(([key, text]) => (
+                      <section class={`section section-${key}`}>
+                        <h3>{sectionTitles[key] || key}</h3>
+                        <p>{text as string}</p>
+                      </section>
+                    ))
+                ) : reading.rawContent ? (
+                  <div class="raw-content">
+                    <p>{reading.rawContent}</p>
+                  </div>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </main>
+
+        <!-- Call to Action -->
+        <footer class="share-cta">
+          <div class="cta-content">
+            <p class="cta-text">Esta lectura fue compartida de forma anonima</p>
+            <a href={`${MAIN_SITE}/chat`} class="cta-button">
+              Crea tu propia lectura gratis
+            </a>
+          </div>
+          <div class="footer-links">
+            <a href={MAIN_SITE}>Free Tarot Fun</a>
+            <span class="separator">|</span>
+            <a href={`${MAIN_SITE}/privacy`}>Privacidad</a>
+          </div>
+        </footer>
+      </>
+    )}
+  </div>
+</body>
+</html>
+
+<style>
+  :root {
+    --bg-primary: #0a0a1a;
+    --bg-secondary: #12122a;
+    --bg-tertiary: #1a1a3a;
+    --text-primary: #f0e6d3;
+    --text-secondary: #a89f8c;
+    --accent: #d4af37;
+    --accent-light: #f0d060;
+    --border-primary: rgba(212, 175, 55, 0.2);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  .share-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  /* Header */
+  .share-header {
+    text-align: center;
+    padding: 40px 20px;
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: 40px;
+  }
+
+  .logo {
+    display: inline-block;
+    font-family: 'Cinzel', serif;
+    font-size: 1.2rem;
+    color: var(--accent);
+    text-decoration: none;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+  }
+
+  .logo:hover {
+    color: var(--accent-light);
+  }
+
+  h1 {
+    font-family: 'Cinzel', serif;
+    color: var(--accent);
+    font-size: 1.8rem;
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+
+  .question {
+    font-style: italic;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* Cards */
+  .cards-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin: 30px 0 40px;
+  }
+
+  .tarot-card {
+    text-align: center;
+    transition: transform 0.3s ease;
+  }
+
+  .tarot-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .card-image-wrapper {
+    position: relative;
+    width: 140px;
+    height: 240px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    background: var(--bg-tertiary);
+  }
+
+  .tarot-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .tarot-card.inverted .card-image-wrapper {
+    transform: rotate(180deg);
+  }
+
+  .card-info {
+    margin-top: 12px;
+  }
+
+  .card-name {
+    display: block;
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+  }
+
+  .card-position {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .card-orientation {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--accent-light);
+    font-style: italic;
+    margin-top: 2px;
+  }
+
+  /* Interpretation */
+  .interpretation {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-primary);
+    border-radius: 16px;
+    padding: 32px;
+    margin: 30px 0;
+  }
+
+  .section {
+    margin-bottom: 28px;
+  }
+
+  .section:last-child {
+    margin-bottom: 0;
+  }
+
+  .section h3 {
+    font-family: 'Cinzel', serif;
+    color: var(--accent);
+    font-size: 1.1rem;
+    margin: 0 0 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section h3::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(to bottom, var(--accent), var(--accent-light));
+    border-radius: 2px;
+  }
+
+  .section p {
+    color: var(--text-primary);
+    line-height: 1.8;
+    margin: 0;
+  }
+
+  .section-sintesis,
+  .section-consejo {
+    background: rgba(212, 175, 55, 0.05);
+    padding: 20px;
+    border-radius: 12px;
+    margin-top: 24px;
+  }
+
+  .raw-content p {
+    white-space: pre-wrap;
+  }
+
+  /* CTA Footer */
+  .share-cta {
+    text-align: center;
+    padding: 50px 20px;
+    border-top: 1px solid var(--border-primary);
+    margin-top: 50px;
+  }
+
+  .cta-content {
+    margin-bottom: 30px;
+  }
+
+  .cta-text {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 1rem;
+  }
+
+  .cta-button {
+    display: inline-block;
+    background: linear-gradient(45deg, var(--accent), var(--accent-light));
+    color: var(--bg-primary);
+    padding: 16px 32px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
+  }
+
+  .cta-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(212, 175, 55, 0.4);
+  }
+
+  .footer-links {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+
+  .footer-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+  }
+
+  .footer-links a:hover {
+    color: var(--accent);
+  }
+
+  .separator {
+    margin: 0 12px;
+    opacity: 0.5;
+  }
+
+  /* Error State */
+  .error-container {
+    text-align: center;
+    padding: 80px 20px;
+  }
+
+  .error-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+  }
+
+  .error-container h1 {
+    margin-bottom: 16px;
+  }
+
+  .error-container p {
+    color: var(--text-secondary);
+    margin-bottom: 30px;
+    font-size: 1.1rem;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .share-header {
+      padding: 30px 15px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+    }
+
+    .question {
+      font-size: 1rem;
+    }
+
+    .cards-container {
+      gap: 12px;
+    }
+
+    .card-image-wrapper {
+      width: 100px;
+      height: 170px;
+    }
+
+    .card-name {
+      font-size: 0.85rem;
+    }
+
+    .card-position {
+      font-size: 0.75rem;
+    }
+
+    .interpretation {
+      padding: 20px;
+    }
+
+    .section h3 {
+      font-size: 1rem;
+    }
+
+    .cta-button {
+      padding: 14px 28px;
+      font-size: 1rem;
+    }
+  }
+</style>

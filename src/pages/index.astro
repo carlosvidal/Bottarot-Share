@@ -1,0 +1,5 @@
+---
+// Redirect to main site
+const MAIN_SITE = import.meta.env.MAIN_SITE_URL || 'https://freetarot.fun';
+return Astro.redirect(MAIN_SITE, 302);
+---
